@@ -1,3 +1,4 @@
+from pathlib improt Path
 from selenium import webdriver
 from selenium.webdriver.edge.service import Service
 from selenium.webdriver.edge.options import Options
@@ -13,7 +14,8 @@ import time
 START_DATE = "2026-02-02"
 END_DATE   = "2026-02-08"
 
-RESTAURANTS = {
+RESTAURANTS = 
+{
     "Chickentarian (Ajax)":                 "6d016df5-a637-53c8-9d64-56aeff7a20b9",
     "Chickentarian (Britannia)":            "a4851bd5-9160-5208-b556-92ba3426c6de",
     "Chickentarian (Lebovic)":              "41c579a9-1b2a-5c7f-9856-0038cbd1bb5b",
@@ -68,7 +70,7 @@ for restaurant, uuid in RESTAURANTS.items():
     )
     driver.get(url)
     # short pause to let dynamic content render
-    time.sleep(5)
+    time.sleep(10)
 
     # Earnings: wait until a non-empty monolabel under the Earnings label appears
     earnings = "NOT FOUND"
@@ -101,7 +103,7 @@ for restaurant, uuid in RESTAURANTS.items():
 
     print(f"   ➜ Earnings : {earnings}    |    Marketing : {marketing}")
     ws.append([restaurant, earnings, marketing])
-    time.sleep(5)
+    time.sleep(10)
 
 # ========== Beautify Excel ==========
 
@@ -150,9 +152,15 @@ style = TableStyleInfo(name="TableStyleMedium9", showFirstColumn=False,
 tbl.tableStyleInfo = style
 ws.add_table(tbl)
 
+# Create folder
+BASE_DIR = Path(__file__).resolve().parent.parent
+REPORT_DIR = BASE_DIR / "Uber Eats Reports"
+REPORT_DIR.mkdir(parents=True, exist_ok=True)       # creates folder safely
+
 # Save file
-filename = f"ubereats_earnings_{START_DATE}_to_{END_DATE}.xlsx"
+filename = REPORT_DIR / f"ubereats_earnings_{START_DATE}_to_{END_DATE}.xlsx"
 wb.save(filename)
+
 print(f"\n✅ Done! Saved file: {filename}")
 
 driver.quit()
