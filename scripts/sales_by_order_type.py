@@ -11,7 +11,7 @@ from openpyxl import load_workbook
 # DRIVER_PATH      = r"C:\Users\PC\Downloads\edgedriver_win64\msedgedriver.exe"
 DRIVER_PATH = "msedgedriver.exe"
 DEBUGGER_ADDRESS = "127.0.0.1:9222"
-MASTER_XLSX      = r"D:\Kaam\Muneef 0\Test Automation\Weekly Sales summary (week 4).xlsx"
+MASTER_XLSX      = r"..\Weekly Files\Weekly Sales summary (week 5).xlsx"
 PREV_WEEK_LABEL  = "Jan 26 - Feb 01"  # find this in column A
 NEW_WEEK_LABEL   = "Feb 02 - Feb 08"      # write this into the row below
 

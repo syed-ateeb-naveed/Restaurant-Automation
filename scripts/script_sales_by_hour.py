@@ -10,7 +10,7 @@ from openpyxl import load_workbook
 # ───── CONFIG ─────
 DRIVER_PATH     = "msedgedriver.exe"
 DEBUGGER_ADDR   = "127.0.0.1:9222"
-SUMMARY_FILE    = r"D:\Kaam\Muneef 0\Test Automation\Weekly Sales summary (week 4).xlsx"
+SUMMARY_FILE    = r"..\Weekly Files\Weekly Sales summary (week 5).xlsx"
 CURRENT_WEEK    = "Feb 02 - Feb 08"  # exactly as in column A
 
 dropdown_to_sheet = {
