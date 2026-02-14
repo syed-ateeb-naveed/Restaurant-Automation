@@ -24,6 +24,7 @@ RESTAURANTS = {
     "Karachi Highway Karahi":               "e89dff71-3cda-5432-a1be-ad745f4171fe",
     "Karachi Kabab Wala":                   "005936f1-ebc6-598d-9c36-42894a11bcaf",
     "Karachi Kabab Wala (Toronto)":         "75fabf19-0ce6-558b-a1a4-89f701f42e34",
+    "Karachi Kababeez":                     "0ca5e70f-8f1f-43aa-a86d-6a4e55ea04a1",
     "Pizza Karachi (9661 Jane Street)":     "5c4046b8-537b-5b9f-9b93-647caf96869e",
     "Pizza Karachi (Dixie Rd)":             "fbd1e576-c136-5388-88e7-80544f954918",
     "Pizza Karachi (Eglinton Ave W)":       "2f84ac6c-8e14-54c3-a6c6-facc6bad14fa",
@@ -69,7 +70,7 @@ for restaurant, uuid in RESTAURANTS.items():
     )
     driver.get(url)
     # short pause to let dynamic content render
-    time.sleep(10)
+    time.sleep(15)
 
     # Earnings: wait until a non-empty monolabel under the Earnings label appears
     earnings = "NOT FOUND"
@@ -102,7 +103,7 @@ for restaurant, uuid in RESTAURANTS.items():
 
     print(f"   ➜ Earnings : {earnings}    |    Marketing : {marketing}")
     ws.append([restaurant, earnings, marketing])
-    time.sleep(10)
+    time.sleep(15)
 
 # ========== Beautify Excel ==========
 
