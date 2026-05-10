@@ -45,7 +45,7 @@ TB_USERNAME = "muneef.naveed30@gmail.com"
 TB_PASSWORD = "Bistro1#$"
 
 # Label of the previous week — used if the target row doesn't exist yet.
-PREV_WEEK_LABEL   = "Apr 27 - May 03"
+PREV_WEEK_LABEL   = "Apr 20 - Apr 26"
 
 # Label for the week being filled in.
 # If this row already exists in column A the script writes into it directly.
@@ -292,7 +292,8 @@ def run_sales_by_section(driver, wb, start_ts, end_ts):
 
         ws = wb[sheet_name]
         row = find_target_row(ws)
-        ws.cell(row=row, column=SECTION_BILL_COUNT_COL, value=total_bill_count)
+        cell = ws.cell(row=row, column=SECTION_BILL_COUNT_COL, value=int(total_bill_count))
+        cell.number_format = "0"
         ws.cell(row=row, column=SECTION_NET_SALES_COL,  value=round(net_sales, 2))
         ws.cell(row=row, column=SECTION_REMAINING_COL,  value=round(remaining, 2))
         ws.cell(row=row, column=SECTION_SKIP_COL,       value=round(skip, 2))
@@ -330,11 +331,87 @@ def _match_category(category_name: str, header_map: dict[str, int]) -> int | Non
     return None
 
 
+def _find_category_net_sales_col(ws) -> int | None:
+    """
+    Return the column index of the 3rd 'Net Sales' header in row 2.
+    The first two belong to Sales by Section and Sales by Order Type;
+    the third is the category total column.
+    """
+    count = 0
+    for cell in ws[2]:
+        if cell.value is not None and str(cell.value).strip() == "Net Sales":
+            count += 1
+            if count == 3:
+                return cell.column
+    return None
+
+
+def _insert_category_column(ws, at_col: int, header: str):
+    """
+    Insert a new column at at_col, write the category name as the row-2
+    header, and correctly update every row-1 merged header.
+
+    We take full ownership of all row-1 merges:
+      1. Snapshot every merge in row 1 before the insert.
+      2. Call insert_cols (shifts cell data correctly).
+      3. Discard ALL row-1 merges from the set (bypassing unmerge_cells to
+         avoid its KeyError when cells have already been shifted).
+      4. Re-apply each merge with boundaries computed from the pre-insert
+         snapshot — category merge extends by 1, all others shift normally.
+    """
+    # 1. Snapshot all row-1 merges (min_col, max_col, title) BEFORE insert
+    row1_merges = []
+    for m in list(ws.merged_cells.ranges):
+        if m.min_row == 1 and m.max_row == 1:
+            row1_merges.append({
+                "min_col": m.min_col,
+                "max_col": m.max_col,
+                "title":   ws.cell(1, m.min_col).value,
+            })
+
+    # 2. Insert the new column and write its row-2 header
+    ws.insert_cols(at_col)
+    ws.cell(row=2, column=at_col, value=header)
+
+    # 3. Discard every row-1 merge that openpyxl now has recorded
+    #    (their ranges may be in an inconsistent state after the insert)
+    for m in list(ws.merged_cells.ranges):
+        if m.min_row == 1 and m.max_row == 1:
+            ws.merged_cells.ranges.discard(m)
+
+    # 4. Re-apply all row-1 merges with manually computed boundaries
+    for info in row1_merges:
+        old_min = info["min_col"]
+        old_max = info["max_col"]
+        title   = info["title"]
+        is_cat  = title and "category" in str(title).lower()
+
+        if is_cat and old_min <= at_col <= old_max + 1:
+            # Category merge: extend right by 1 to cover the new column
+            new_min, new_max = old_min, old_max + 1
+        elif old_min >= at_col:
+            # Entirely to the right of the insert: shift both ends right
+            new_min, new_max = old_min + 1, old_max + 1
+        elif old_max >= at_col:
+            # Spans the insert point: expand the right end
+            new_min, new_max = old_min, old_max + 1
+        else:
+            # Entirely to the left: no change
+            new_min, new_max = old_min, old_max
+
+        ws.merge_cells(start_row=1, start_column=new_min,
+                       end_row=1,   end_column=new_max)
+        ws.cell(row=1, column=new_min).value = title
+
+
 def run_sales_by_category(driver, wb, start_ts, end_ts):
     """
-    Writes each category's net_revenue to its matching Excel column.
-    Categories present in the API but absent from the sheet are skipped
-    with a warning (mirrors the original script's behaviour).
+    Writes each category's net_revenue to its matching Excel column and
+    writes the grand total to the 3rd 'Net Sales' column (category total).
+
+    If a category from the API is missing from the sheet, a new column is
+    inserted immediately before the 'Net Sales' column, with the category
+    name written as the row-2 header.
     """
     print("\n── Sales by Category ────────────────────────────")
 
@@ -351,19 +428,39 @@ def run_sales_by_category(driver, wb, start_ts, end_ts):
 
         ws = wb[sheet_name]
         row = find_target_row(ws)
-        header_map = _build_category_header_map(ws)
+        total_net_revenue = 0.0
 
         for r in records:
-            cat_name  = r["sales_category_name"]
-            net_rev   = round(float(r["net_revenue"]), 2)
+            cat_name = r["sales_category_name"]
+            net_rev  = round(float(r["net_revenue"]), 2)
+            total_net_revenue += net_rev
+
+            # Rebuild header map each iteration — it may shift after an insert
+            header_map = _build_category_header_map(ws)
             col = _match_category(cat_name, header_map)
 
             if col is None:
-                print(f"   ⚠️  Category '{cat_name}' not found in sheet headers — skipping.")
-                continue
+                # Insert a new column before the category Net Sales column
+                # and extend the merged header to keep Net Sales inside the group
+                net_sales_col = _find_category_net_sales_col(ws)
+                if net_sales_col is not None:
+                    _insert_category_column(ws, at_col=net_sales_col, header=cat_name)
+                    col = net_sales_col
+                    print(f"   ➕ '{cat_name}' not in sheet — added column {col}, merge extended.")
+                else:
+                    print(f"   ⚠️  '{cat_name}' not found and no Net Sales col to insert before — skipping.")
+                    continue
 
             ws.cell(row=row, column=col, value=net_rev)
             print(f"   {cat_name:<20}: {net_rev:>10.2f}  → col {col}")
+
+        # Write the category grand total to the 3rd Net Sales column
+        net_sales_col = _find_category_net_sales_col(ws)
+        if net_sales_col is not None:
+            ws.cell(row=row, column=net_sales_col, value=round(total_net_revenue, 2))
+            print(f"   {'Net Sales (total)':<20}: {round(total_net_revenue, 2):>10.2f}  → col {net_sales_col}")
+        else:
+            print("   ⚠️  No 3rd 'Net Sales' column found — category total not written.")
 
         print(f"   ✅ Written to row {row}")
 
