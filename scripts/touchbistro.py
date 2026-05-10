@@ -23,7 +23,12 @@ Usage
 2. Run:  python touchbistro.py
 """
 
+import base64
+import os
+import tempfile
+from copy import copy
 from datetime import datetime, timezone, timedelta
+import openpyxl
 from openpyxl import load_workbook
 from selenium import webdriver
 from selenium.webdriver.edge.service import Service
@@ -39,6 +44,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 DRIVER_PATH = "msedgedriver.exe"
 MASTER_XLSX = r"..\Weekly Reports\Weekly Sales summary (week 5).xlsx"
+CHECKER_TEMPLATE_XLSX  = r"..\checker_template.xlsx"
 
 # TouchBistro login credentials
 TB_USERNAME = "muneef.naveed30@gmail.com"
@@ -57,6 +63,9 @@ TARGET_WEEK_LABEL = "Apr 27 - May 03"
 # The script adds 1 day to WEEK_END when calling the API (exclusive upper bound).
 WEEK_START = "2026-04-27"
 WEEK_END   = "2026-05-03"
+
+# Output path for the menu items workbook (uses TARGET_WEEK_LABEL as filename)
+MENU_ITEMS_OUTPUT_XLSX = fr"..\Weekly Item Reports\{TARGET_WEEK_LABEL}.xlsx"
 
 
 # ════════════════════════════════════════════════════════════════
@@ -83,6 +92,10 @@ HOURLY_URL = (
     ADMIN_URL + "/api/frontend/report/v1/venues/{venue_id}/reports/sales-hourly-net-bill-start"
     + "?start={start}&end={end}"
 )
+MENU_ITEM_URL = (
+    ADMIN_URL + "/api/frontend/report/v1/venues/{venue_id}/reports/export_data"
+    + "?start={start}&end={end}&report_name=sales_by_menu_item&type=xlsx"
+)
 
 # venue_id → (display name, Excel sheet name)
 VENUES = {
@@ -97,6 +110,21 @@ VENUES = {
     51878: ("Pizza Karachi - Lebovic",           "Lebovic"),
     51877: ("Pizza Karachi - Ajax",              "Ajax"),
     51594: ("Pizza Karachi - Markham Rd",        "Markham"),
+}
+
+# venue_id → sheet name as expected by the checker's SUMIF formulas
+MENU_ITEM_SHEET_NAMES = {
+    56776: "Karachi Kabab Wala - Queen",
+    55119: "Eglinton",
+    55118: "Heartland",
+    51879: "Karachi Kabab Wala",
+    51876: "Karachi Food Court",
+    54708: "Pizza Karachi Downtown TO",
+    52043: "Highway Karahi",
+    51880: "Wonderland",
+    51878: "Lebovic",
+    51877: "Ajax",
+    51594: "Markham Rd",
 }
 
 # Time buckets for the hourly report (label, [hour strings from API])
@@ -541,6 +569,143 @@ def run_sales_by_hour(driver, wb, start_ts, end_ts):
 
 
 # ════════════════════════════════════════════════════════════════
+# REPORT 5 — Sales by Menu Item
+# ════════════════════════════════════════════════════════════════
+
+def fetch_binary_via_browser(driver, url: str) -> bytes:
+    """
+    Fetch a binary file through the browser so its Okta session is used.
+    Returns raw bytes (e.g. an XLSX file) or raises RuntimeError.
+    """
+    b64 = driver.execute_async_script("""
+        var url      = arguments[0];
+        var callback = arguments[1];
+        fetch(url)
+            .then(function(r) {
+                if (!r.ok) {
+                    callback({ __error__: r.status + ' ' + r.statusText });
+                    return;
+                }
+                r.arrayBuffer().then(function(buf) {
+                    var bytes  = new Uint8Array(buf);
+                    var chunks = [];
+                    for (var i = 0; i < bytes.length; i += 8192) {
+                        chunks.push(String.fromCharCode.apply(null, bytes.subarray(i, i + 8192)));
+                    }
+                    callback(btoa(chunks.join('')));
+                });
+            })
+            .catch(function(e) { callback({ __error__: e.toString() }); });
+    """, url)
+
+    if isinstance(b64, dict) and "__error__" in b64:
+        raise RuntimeError(f"API error: {b64['__error__']}")
+    return base64.b64decode(b64)
+
+
+def _copy_checker_sheet(template_path: str, target_wb, week_label: str):
+    """
+    Copy the 'checker' sheet from the template file into target_wb,
+    preserving all cell values, styles, merged cells, column widths,
+    and row heights. Updates the week label in A1.
+    """
+    tmpl_wb = load_workbook(template_path, data_only=False)
+    src = tmpl_wb["checker"]
+    dst = target_wb.create_sheet(title="checker")
+
+    # Values + styles
+    for row in src.iter_rows():
+        for cell in row:
+            dst_cell = dst.cell(row=cell.row, column=cell.column, value=cell.value)
+            if cell.has_style:
+                dst_cell.font         = copy(cell.font)
+                dst_cell.fill         = copy(cell.fill)
+                dst_cell.alignment    = copy(cell.alignment)
+                dst_cell.border       = copy(cell.border)
+                dst_cell.number_format = cell.number_format
+                dst_cell.protection   = copy(cell.protection)
+
+    # Merged cells
+    for m in src.merged_cells.ranges:
+        dst.merge_cells(str(m))
+
+    # Column widths
+    for col, dim in src.column_dimensions.items():
+        if dim.width:
+            dst.column_dimensions[col].width = dim.width
+
+    # Row heights
+    for row_idx, dim in src.row_dimensions.items():
+        if dim.height:
+            dst.row_dimensions[row_idx].height = dim.height
+
+    # Update week label (A1 is inside the A1:X2 merge, so write to top-left only)
+    dst.cell(row=1, column=1, value=week_label)
+
+
+def run_menu_items(driver, start_ts: int, end_ts: int):
+    """
+    Downloads the Sales by Menu Item XLSX for each venue via the browser,
+    assembles them all into a single workbook, appends the checker sheet
+    (copied from CHECKER_TEMPLATE_XLSX), and saves to MENU_ITEMS_OUTPUT_XLSX.
+    """
+    print("\n── Sales by Menu Item ───────────────────────────")
+
+    out_wb = openpyxl.Workbook()
+    out_wb.remove(out_wb.active)   # drop the default empty sheet
+    # Force Excel to recalculate all formulas on open (checker SUMIF formulas)
+    out_wb.calculation.calcMode      = "auto"
+    out_wb.calculation.fullCalcOnLoad = True
+
+    for venue_id, sheet_name in MENU_ITEM_SHEET_NAMES.items():
+        display_name = VENUES[venue_id][0]
+        print(f"▶  {display_name}")
+        url = build_url(MENU_ITEM_URL, venue_id, start_ts, end_ts)
+
+        try:
+            raw = fetch_binary_via_browser(driver, url)
+        except RuntimeError as exc:
+            print(f"   ⚠️  {exc} — skipping."); continue
+
+        # Write bytes to a temp file so openpyxl can open it
+        with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
+            tmp_path = tmp.name
+            tmp.write(raw)
+
+        try:
+            dl_wb = load_workbook(tmp_path, data_only=False)
+            dl_ws = dl_wb.active
+            target_ws = out_wb.create_sheet(title=sheet_name)
+
+            for row in dl_ws.iter_rows():
+                for cell in row:
+                    val = cell.value
+                    # Numeric columns (4–15) in data rows arrive as strings from TB
+                    if cell.row >= 3 and 4 <= cell.column <= 15 and isinstance(val, str):
+                        try:
+                            clean = val.replace(",", "").strip()
+                            val = float(clean.rstrip("%")) / 100 if clean.endswith("%") else float(clean)
+                        except ValueError:
+                            pass
+                    target_ws.cell(row=cell.row, column=cell.column, value=val)
+
+            print(f"   ✅ {dl_ws.max_row - 2} items → sheet '{sheet_name}'")
+        finally:
+            os.unlink(tmp_path)
+
+    # Append the checker sheet from the template
+    try:
+        _copy_checker_sheet(CHECKER_TEMPLATE_XLSX, out_wb, TARGET_WEEK_LABEL)
+        print("   ✅ Checker sheet copied from template.")
+    except Exception as exc:
+        print(f"   ⚠️  Could not copy checker: {exc}")
+
+    os.makedirs(os.path.dirname(os.path.abspath(MENU_ITEMS_OUTPUT_XLSX)), exist_ok=True)
+    out_wb.save(MENU_ITEMS_OUTPUT_XLSX)
+    print(f"\n✅  Menu items workbook saved → {MENU_ITEMS_OUTPUT_XLSX}")
+
+
+# ════════════════════════════════════════════════════════════════
 # MAIN
 # ════════════════════════════════════════════════════════════════
 
@@ -563,7 +728,9 @@ def main():
         run_sales_by_hour(driver, wb, start_ts, end_ts)
 
         wb.save(MASTER_XLSX)
-        print(f"\n✅  All reports done. Workbook saved → {MASTER_XLSX}")
+        print(f"\n✅  Weekly summary done. Workbook saved → {MASTER_XLSX}")
+
+        run_menu_items(driver, start_ts, end_ts)
 
     finally:
         driver.quit()
