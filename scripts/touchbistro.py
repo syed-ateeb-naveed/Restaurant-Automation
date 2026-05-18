@@ -28,6 +28,7 @@ import os
 import tempfile
 from copy import copy
 from datetime import datetime, timezone, timedelta
+from dotenv import load_dotenv
 import openpyxl
 from openpyxl import load_workbook
 from selenium import webdriver
@@ -36,6 +37,8 @@ from selenium.webdriver.edge.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 
 # ════════════════════════════════════════════════════════════════
@@ -46,23 +49,23 @@ DRIVER_PATH = "msedgedriver.exe"
 MASTER_XLSX = r"..\Weekly Reports\Weekly Sales summary (week 5).xlsx"
 CHECKER_TEMPLATE_XLSX  = r"..\checker_template.xlsx"
 
-# TouchBistro login credentials
-TB_USERNAME = "muneef.naveed30@gmail.com"
-TB_PASSWORD = "Bistro1#$"
+# TouchBistro login credentials  (loaded from .env)
+TB_USERNAME = os.environ["TB_USERNAME"]
+TB_PASSWORD = os.environ["TB_PASSWORD"]
 
 # Label of the previous week — used if the target row doesn't exist yet.
-PREV_WEEK_LABEL   = "Apr 20 - Apr 26"
+PREV_WEEK_LABEL   = "May 4 - May 10"
 
 # Label for the week being filled in.
 # If this row already exists in column A the script writes into it directly.
 # If it doesn't exist, it creates the row below PREV_WEEK_LABEL.
-TARGET_WEEK_LABEL = "Apr 27 - May 03"
+TARGET_WEEK_LABEL = "May 11 - May 17"
 
 # Date range (YYYY-MM-DD), both ends inclusive.
 # WEEK_START = first day of the week, WEEK_END = last day of the week.
 # The script adds 1 day to WEEK_END when calling the API (exclusive upper bound).
-WEEK_START = "2026-04-27"
-WEEK_END   = "2026-05-03"
+WEEK_START = "2026-05-11"
+WEEK_END   = "2026-05-17"
 
 # Output path for the menu items workbook (uses TARGET_WEEK_LABEL as filename)
 MENU_ITEMS_OUTPUT_XLSX = fr"..\Weekly Item Reports\{TARGET_WEEK_LABEL}.xlsx"

@@ -1,4 +1,4 @@
-from pathlib improt Path
+from pathlib import Path
 from selenium import webdriver
 from selenium.webdriver.edge.service import Service
 from selenium.webdriver.edge.options import Options
@@ -11,11 +11,10 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 import time
 
 # ---------------- CONFIG ---------------- #
-START_DATE = "2026-02-02"
-END_DATE   = "2026-02-08"
+START_DATE = "2026-05-04"
+END_DATE   = "2026-05-10"
 
-RESTAURANTS = 
-{
+RESTAURANTS = {
     "Chickentarian (Ajax)":                 "6d016df5-a637-53c8-9d64-56aeff7a20b9",
     "Chickentarian (Britannia)":            "a4851bd5-9160-5208-b556-92ba3426c6de",
     "Chickentarian (Lebovic)":              "41c579a9-1b2a-5c7f-9856-0038cbd1bb5b",
