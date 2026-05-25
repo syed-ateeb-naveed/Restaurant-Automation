@@ -16,8 +16,8 @@ DRIVER_PATH        = "msedgedriver.exe"
 DEBUGGER_ADDRESS   = "127.0.0.1:9222"
 DOWNLOADS_DIR      = r"C:\Users\PC\Downloads"
 # TEMPLATE_CHECKER   = r"D:\Kaam\Muneef 0\Test Automation\Weekly item summary (week 18) .xlsx"
-NEW_WEEK           = "Feb 02 - Feb 08"
-OUTPUT_XLSX        = fr"D:\Kaam\Muneef 0\Test Automation\{NEW_WEEK}.xlsx"
+NEW_WEEK           = "Apr 27 - May 03"
+OUTPUT_XLSX        = fr"..\Menu Item Reports\{NEW_WEEK}.xlsx"
 
 # Dropdown label → desired sheet name
 dropdown_to_sheet = {
@@ -76,9 +76,8 @@ new_wb = openpyxl.Workbook()
 new_wb.remove(new_wb.active)
 
 try:
-    # 1) Open the restaurant dropdown once
     dd_btn = wait.until(EC.element_to_be_clickable((
-        By.CSS_SELECTOR, "button[data-testid='radio-dropdown-selector-input']"
+        By.CSS_SELECTOR, "button[data-pw='radio-dropdown-selector-input']"
     )))
     dd_btn.click()
     time.sleep(0.5)

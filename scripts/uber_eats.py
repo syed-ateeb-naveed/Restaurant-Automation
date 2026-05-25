@@ -11,8 +11,8 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 import time
 
 # ---------------- CONFIG ---------------- #
-START_DATE = "2026-02-02"
-END_DATE   = "2026-02-08"
+START_DATE = "2026-05-11"
+END_DATE   = "2026-05-17"
 
 RESTAURANTS = {
     "Chickentarian (Ajax)":                 "6d016df5-a637-53c8-9d64-56aeff7a20b9",
@@ -82,6 +82,7 @@ for restaurant, uuid in RESTAURANTS.items():
             "//div[@data-baseweb='typo-monolabelmedium']"
         )
         earnings = driver.find_element(By.XPATH, earnings_xpath).text.strip()
+        earnings = earnings[2:]     #Truncate 'CA'
     except Exception:
         pass
 
@@ -97,6 +98,7 @@ for restaurant, uuid in RESTAURANTS.items():
         marketing_elements = driver.find_elements(By.XPATH, marketing_xpath)
         if marketing_elements:
             marketing = marketing_elements[0].text.strip()
+            marketing = marketing[3:]       #Truncate '-CA'
     except Exception:
         pass
 
