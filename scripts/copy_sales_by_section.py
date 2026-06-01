@@ -39,12 +39,12 @@ MASTER_XLSX = r"..\Weekly Reports\Weekly Sales summary (week 5).xlsx"
 
 # Label of the previous week — used to locate the insertion point if the
 # target row for this week doesn't exist yet.
-PREV_WEEK_LABEL   = "May 4 - May 10"
+PREV_WEEK_LABEL   = "May 18 - May 24"
 
 # Label for the week being filled in.
 # If this row already exists in column A the script writes into it directly.
 # If it doesn't exist, it creates the row below PREV_WEEK_LABEL.
-TARGET_WEEK_LABEL = "May 11 - May 17"
+TARGET_WEEK_LABEL = "May 25 - May 31"
 
 
 # ════════════════════════════════════════════════════════════════
