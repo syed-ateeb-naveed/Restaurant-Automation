@@ -54,18 +54,18 @@ TB_USERNAME = os.environ["TB_USERNAME"]
 TB_PASSWORD = os.environ["TB_PASSWORD"]
 
 # Label of the previous week — used if the target row doesn't exist yet.
-PREV_WEEK_LABEL   = "May 4 - May 10"
+PREV_WEEK_LABEL   = "May 18 - May 24"
 
 # Label for the week being filled in.
 # If this row already exists in column A the script writes into it directly.
 # If it doesn't exist, it creates the row below PREV_WEEK_LABEL.
-TARGET_WEEK_LABEL = "May 11 - May 17"
+TARGET_WEEK_LABEL = "May 25 - May 31"
 
 # Date range (YYYY-MM-DD), both ends inclusive.
 # WEEK_START = first day of the week, WEEK_END = last day of the week.
 # The script adds 1 day to WEEK_END when calling the API (exclusive upper bound).
-WEEK_START = "2026-05-11"
-WEEK_END   = "2026-05-17"
+WEEK_START = "2026-05-25"
+WEEK_END   = "2026-05-31"
 
 # Output path for the menu items workbook (uses TARGET_WEEK_LABEL as filename)
 MENU_ITEMS_OUTPUT_XLSX = fr"..\Weekly Item Reports\{TARGET_WEEK_LABEL}.xlsx"

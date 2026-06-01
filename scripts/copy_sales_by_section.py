@@ -18,8 +18,8 @@ Usage:
     python copy_sales_by_section.py <summary_file> [--target <report_file>]
 
 Examples:
-    python copy_sales_by_section.py "Weekly Sales summary (week 6).xlsx"
-    python copy_sales_by_section.py "Weekly Sales summary (week 6).xlsx" --target "Weekly Sales Report (main).xlsx"
+    python copy_sales_by_section.py "Weekly Sales summary (week 5).xlsx"
+    python copy_sales_by_section.py "Weekly Sales summary (week 5).xlsx" --target "Weekly Sales Report (main).xlsx"
 
 If --target is omitted, defaults to "Weekly Sales Report (main).xlsx" in the
 same folder as the summary file.
