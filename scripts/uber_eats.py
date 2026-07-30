@@ -11,8 +11,8 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 import time
 
 # ---------------- CONFIG ---------------- #
-START_DATE = "2026-05-04"
-END_DATE   = "2026-05-10"
+START_DATE = "2026-06-08"
+END_DATE   = "2026-06-14"
 
 RESTAURANTS = {
     "Chickentarian (Ajax)":                 "6d016df5-a637-53c8-9d64-56aeff7a20b9",
