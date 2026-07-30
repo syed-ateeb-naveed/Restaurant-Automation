@@ -2,5 +2,4 @@
 /scripts/config.json
 
 # Generated Excel reports
-/Weekly Reports/*.xlsx
 /Weekly Item Reports/*.xlsx
