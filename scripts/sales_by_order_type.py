@@ -11,9 +11,9 @@ from openpyxl import load_workbook
 # DRIVER_PATH      = r"C:\Users\PC\Downloads\edgedriver_win64\msedgedriver.exe"
 DRIVER_PATH = "msedgedriver.exe"
 DEBUGGER_ADDRESS = "127.0.0.1:9222"
-MASTER_XLSX      = r"..\Weekly Files\Weekly Sales summary (week 5).xlsx"
-PREV_WEEK_LABEL  = "Jan 26 - Feb 01"  # find this in column A
-NEW_WEEK_LABEL   = "Feb 02 - Feb 08"      # write this into the row below
+MASTER_XLSX      = r"..\Weekly Reports\Weekly Sales summary (week 5).xlsx"
+PREV_WEEK_LABEL  = "Apr 20 - Apr 26"  # find this in column A
+NEW_WEEK_LABEL   = "Apr 27 - May 03"      # write this into the row below
 
 # Map dropdown label → sheet name
 dropdown_to_sheet = {
