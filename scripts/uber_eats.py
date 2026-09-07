@@ -12,7 +12,7 @@ import time
 
 # ---------------- CONFIG ---------------- #
 START_DATE = "2026-08-31"
-END_DATE   = "2026-08-06"
+END_DATE   = "2026-09-06"
 
 RESTAURANTS = {
     "Chickentarian (Ajax)":                 "6d016df5-a637-53c8-9d64-56aeff7a20b9",
