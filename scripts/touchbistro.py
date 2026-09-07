@@ -19,13 +19,17 @@ How it works
 
 Usage
 -----
-1. Set PREV_WEEK_LABEL, TARGET_WEEK_LABEL, WEEK_START, WEEK_END below.
-2. Run:  python touchbistro.py
+Dates are auto-computed from the current date (last completed Mon–Sun week).
+To override, set "auto": false in config.json and fill in the date fields.
+
+Run:  python touchbistro.py
 """
 
 import base64
 import json
+import logging
 import os
+import sys
 import tempfile
 from copy import copy
 from datetime import datetime, timezone, timedelta
@@ -43,7 +47,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 
 # ════════════════════════════════════════════════════════════════
-# CONFIG  —  loaded from config.json (edit that file, not this one)
+# CONFIG
 # ════════════════════════════════════════════════════════════════
 
 DRIVER_PATH = "msedgedriver.exe"
@@ -54,15 +58,60 @@ CHECKER_TEMPLATE_XLSX  = r"..\checker_template.xlsx"
 TB_USERNAME = os.environ["TB_USERNAME"]
 TB_PASSWORD = os.environ["TB_PASSWORD"]
 
-# Load week config from config.json
-_config_path = os.path.join(os.path.dirname(__file__), "config.json")
-with open(_config_path, "r") as _f:
-    _config = json.load(_f)
 
-PREV_WEEK_LABEL   = _config["prev_week_label"]
-TARGET_WEEK_LABEL = _config["target_week_label"]
-WEEK_START        = _config["week_start"]
-WEEK_END          = _config["week_end"]
+def _format_week_label(start, end):
+    """Format a date range as 'Jul 6 - Jul 12' (no zero-padding)."""
+    return f"{start.strftime('%b')} {start.day} - {end.strftime('%b')} {end.day}"
+
+
+def compute_week_dates():
+    """
+    Compute the last completed Mon–Sun week from today's date.
+    Returns (prev_week_label, target_week_label, week_start, week_end).
+    """
+    from datetime import date
+    today = date.today()
+    # days_since_sunday: Mon→1, Tue→2, … Sun→7
+    days_since_sunday = (today.weekday() + 1) % 7 or 7
+    last_sunday = today - timedelta(days=days_since_sunday)
+    last_monday = last_sunday - timedelta(days=6)
+
+    prev_sunday = last_sunday - timedelta(days=7)
+    prev_monday = last_monday - timedelta(days=7)
+
+    return (
+        _format_week_label(prev_monday, prev_sunday),
+        _format_week_label(last_monday, last_sunday),
+        last_monday.strftime("%Y-%m-%d"),
+        last_sunday.strftime("%Y-%m-%d"),
+    )
+
+
+def _load_config():
+    """
+    Determine week dates.
+    If config.json exists and has "auto": false  →  use manual values.
+    Otherwise  →  auto-compute from today's date.
+    """
+    config_path = os.path.join(os.path.dirname(__file__), "config.json")
+    try:
+        with open(config_path, "r") as f:
+            cfg = json.load(f)
+        if not cfg.get("auto", True):
+            # Manual override mode
+            return (
+                cfg["prev_week_label"],
+                cfg["target_week_label"],
+                cfg["week_start"],
+                cfg["week_end"],
+            )
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass  # Fall through to auto-compute
+
+    return compute_week_dates()
+
+
+PREV_WEEK_LABEL, TARGET_WEEK_LABEL, WEEK_START, WEEK_END = _load_config()
 
 # Output path for the menu items workbook (uses TARGET_WEEK_LABEL as filename)
 MENU_ITEMS_OUTPUT_XLSX = fr"..\Weekly Item Reports\{TARGET_WEEK_LABEL}.xlsx"
@@ -110,6 +159,8 @@ VENUES = {
     51878: ("Pizza Karachi - Lebovic",           "Lebovic"),
     51877: ("Pizza Karachi - Ajax",              "Ajax"),
     51594: ("Pizza Karachi - Markham Rd",        "Markham"),
+    65879: ("Pizza Karachi - Oshawa",            "Oshawa"),
+    66035: ("Pizza Karachi - Milton",            "Milton")
 }
 
 # venue_id → sheet name as expected by the checker's SUMIF formulas
@@ -125,6 +176,8 @@ MENU_ITEM_SHEET_NAMES = {
     51878: "Lebovic",
     51877: "Ajax",
     51594: "Markham Rd",
+    65879: "Oshawa",
+    66035: "Milton"
 }
 
 # Time buckets for the hourly report (label, [hour strings from API])
@@ -158,6 +211,18 @@ ORDER_TYPE_START_COL    = 8   # H  (Take Out … Net Sales → H–M)
 # HELPERS — general
 # ════════════════════════════════════════════════════════════════
 
+class _TeeWriter:
+    """Write to multiple streams simultaneously (for logging to file + console)."""
+    def __init__(self, *streams):
+        self.streams = streams
+    def write(self, data):
+        for s in self.streams:
+            s.write(data)
+            s.flush()
+    def flush(self):
+        for s in self.streams:
+            s.flush()
+
 def to_unix(date_str: str, add_day: bool = False) -> int:
     """Convert 'YYYY-MM-DD' to a Unix timestamp at midnight UTC."""
     dt = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
@@ -186,6 +251,15 @@ def login() -> webdriver.Edge:
     return driver
 
 
+def _log_api_response(label: str, url: str, payload):
+    """Write the captured response to stdout so it is also stored in the log file."""
+    try:
+        formatted = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
+    except TypeError:
+        formatted = str(payload)
+    print(f"{label} for {url}:\n{formatted}")
+
+
 def fetch_via_browser(driver, url: str) -> list[dict]:
     """
     Make a GET request through the browser so its Okta session is used.
@@ -206,7 +280,10 @@ def fetch_via_browser(driver, url: str) -> list[dict]:
     """, url)
 
     if isinstance(result, dict) and "__error__" in result:
+        print(f"API fetch failed for {url}: {result['__error__']}")
         raise RuntimeError(f"API error: {result['__error__']}")
+
+    _log_api_response("API response", url, result)
     return result
 
 
@@ -599,8 +676,12 @@ def fetch_binary_via_browser(driver, url: str) -> bytes:
     """, url)
 
     if isinstance(b64, dict) and "__error__" in b64:
+        print(f"Binary API fetch failed for {url}: {b64['__error__']}")
         raise RuntimeError(f"API error: {b64['__error__']}")
-    return base64.b64decode(b64)
+
+    raw = base64.b64decode(b64)
+    print(f"Binary API response for {url}: {len(raw)} bytes (Excel export captured)")
+    return raw
 
 
 def _copy_checker_sheet(template_path: str, target_wb, week_label: str):
@@ -710,6 +791,16 @@ def run_menu_items(driver, start_ts: int, end_ts: int):
 # ════════════════════════════════════════════════════════════════
 
 def main():
+    # Set up logging — tee stdout to a log file
+    log_dir = os.path.join(os.path.dirname(__file__), "..", "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    log_file_path = os.path.join(
+        log_dir,
+        f"touchbistro_{datetime.now().strftime('%Y-%m-%d_%H%M%S')}.log",
+    )
+    log_file = open(log_file_path, "w", encoding="utf-8")
+    sys.stdout = _TeeWriter(sys.__stdout__, log_file)
+
     print(f"Week : {WEEK_START} → {WEEK_END}")
     print(f"Label: '{TARGET_WEEK_LABEL}'\n")
 
@@ -734,6 +825,9 @@ def main():
 
     finally:
         driver.quit()
+        sys.stdout = sys.__stdout__
+        log_file.close()
+        print(f"Log saved → {log_file_path}")
 
 
 if __name__ == "__main__":

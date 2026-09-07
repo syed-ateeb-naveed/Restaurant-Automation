@@ -35,16 +35,16 @@ import openpyxl
 # CONFIG  —  update these before each run
 # ════════════════════════════════════════════════════════════════
 
-MASTER_XLSX = r"..\Weekly Reports\Weekly Sales summary (week 5).xlsx"
+MASTER_XLSX = r"..\Weekly Reports\Weekly Sales summary (week 6).xlsx"
 
 # Label of the previous week — used to locate the insertion point if the
 # target row for this week doesn't exist yet.
-PREV_WEEK_LABEL   = "Jul 13 - Jul 19"
+PREV_WEEK_LABEL   = "Aug 24 - Aug 30"
 
 # Label for the week being filled in.
 # If this row already exists in column A the script writes into it directly.
 # If it doesn't exist, it creates the row below PREV_WEEK_LABEL.
-TARGET_WEEK_LABEL = "Jul 20 - Jul 26"
+TARGET_WEEK_LABEL = "Aug 31 - Sep 06"
 
 
 # ════════════════════════════════════════════════════════════════
@@ -63,6 +63,8 @@ SHEET_MAP = {
     "Queen St.":         "PKQueen",
     "Kababwala - Queen": "KKWQueen",
     "Lebovic":           "Lebovic",
+    "Oshawa":            "Oshawa",
+    "Milton":            "Milton",
 }
 
 # Source columns (1-based): A=date, B=Bill Count, C=Net Sales, D=Remaining,
