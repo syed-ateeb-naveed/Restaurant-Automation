@@ -11,8 +11,8 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 import time
 
 # ---------------- CONFIG ---------------- #
-START_DATE = "2026-05-11"
-END_DATE   = "2026-05-17"
+START_DATE = "2026-08-31"
+END_DATE   = "2026-08-06"
 
 RESTAURANTS = {
     "Chickentarian (Ajax)":                 "6d016df5-a637-53c8-9d64-56aeff7a20b9",
@@ -38,7 +38,9 @@ RESTAURANTS = {
     "Smash OX Burger (platinium Dr)":       "88563c02-d16f-5b65-8778-b970a7ad8b90",
     "Smash OX Burger (Vaughan)":            "2656a84c-a1ab-5651-9d15-68a2a2894a4a",
     "Smash Ox Burgers (toronto)":           "b1be03a8-44a2-5ea6-9bd9-57f659d29965",
-    "Toronto Hot Chicken (Mississauga)":    "ee44351b-e6da-5552-a150-2fddd28d2b83"
+    "Toronto Hot Chicken (Mississauga)":    "ee44351b-e6da-5552-a150-2fddd28d2b83",
+    "Pizza Karachi (Milton)":               "447b8046-7efd-545c-9b58-c1d8c2c89b58",
+    "Pizza Karachi (Oshawa)":               "1a1d20b1-0721-5bdb-aaa4-275554bf228d"
 }
 
 BASE_URL = "https://merchants.ubereats.com/manager/payments"
